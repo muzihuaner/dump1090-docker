@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  dump1090:
+    image: muzihuaner/dump1090
+    ports:
+      - 8080:8080/tcp
+    devices:
+      - /dev/bus/usb
+    restart: unless-stopped
+
+  piaware:
+    # wnagele/piaware image exists on DockerHub, but doesn't support arm/v7.
+    build:
+     context: 'https://github.com/wnagele/docker-piaware.git'
+    env_file: 'flightaware_credentials.txt'
+    environment:
+      - BEAST_PORT_30005_TCP_ADDR=dump1090
+    restart: unless-stopped
+
+  adsbexchange-feed:
+    environment:
+      - 'INPUT=decoder:30005'
+    links:
+      - 'dump1090:decoder'
+    image: marcelstoer/adsbexchange-docker-feed
+    restart: unless-stopped
+
+  adsbexchange-mlat:
+    env_file: 'adsbexchange_mlat_properties.txt'
+    environment:
+      - 'INPUT=decoder:30005'
+      - 'MLAT_RESULTS=decoder:30104'
+    links:
+      - 'dump1090:decoder'
+    image: marcelstoer/adsbexchange-docker-mlat
+    restart: unless-stopped
+
+  adsbhub:
+    image: jraviles/adsbhub
+    restart: unless-stopped
